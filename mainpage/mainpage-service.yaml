@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mainpage-service
+  namespace: prod
+spec:
+  ports:
+  - port: 8080
+  selector:
+    zone: prod
+    app: mainpage-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mainpage-deployment
+  namespace: prod
+spec:
+  replicas: 4
+  selector:
+    matchlabels:
+      zone: prod
+      app: mainpage-service
+  template:
+    metadata:
+      namespace: prod
+      labels:
+        zone: prod
+        app: mainpage-service
+    spec:
+      containers:
+        - name: mainpage-service
+          image: mainpage-service-image
+          ports:
+          - containerPort: 8080
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: 750m
+              memory: 1024Mi
+      restartPolicy: Always
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mainpage-network-policy
+  namespace: prod
+spec:
+  pod-selector:
+    zone: prod
+    app: mainpage-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          zone: prod
+          app: auth-service
+  - from:
+    - podSelector:
+        matchLabels:
+          zone: prod
+          app: trades-service
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          zone: prod
+          app: auth-service
+  - to:
+    - podSelector:
+        matchLabels:
+          zone: prod
+          app: trades-service
+  - to: # По логике это должно разрешить приложению обращаться к DNS серверу
+    - namespaceSelector: {}

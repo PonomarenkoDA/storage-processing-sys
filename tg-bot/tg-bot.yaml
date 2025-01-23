@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tg-bot-service
+  namespace: prod
+spec:
+  ports:
+  - port: 8080
+  selector:
+    zone: prod
+    app: tg-bot-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tg-bot-deployment
+  namespace: prod
+spec:
+  replicas: 1
+  selector:
+    matchlabels:
+      zone: prod
+      app: tg-bot-service
+  template:
+    metadata:
+      namespace: prod
+      labels:
+        zone: prod
+        app: tg-bot-service
+    spec:
+      containers:
+        - name: tg-bot-service
+          image: tg-bot-service-image
+          envFrom:
+          - secretRef:
+              name: tg-bot-creds
+          ports:
+          - containerPort: 8080
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      restartPolicy: Always
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tg-bot-network-policy
+  namespace: prod
+spec:
+  pod-selector:
+    zone: prod
+    app: tg-bot-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          zone: prod
+          app: rl-system-service
+  egress:
+# Вот тут я так и не смог придумать как задать правило обращение к API Telegram
+# (можно было наверное через обращение к DNS серверу за пределами кластера, но это небезопасно как я понял)
+  - to: # По логике это должно разрешить приложению обращаться к DNS серверу
+    - namespaceSelector: {}

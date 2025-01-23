@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-trades-db-backup-job
+  namespace: prod
+spec:
+# Каждые три дня в 4 часа по МСК (реже чем users потому что БД можно если что сохранить со стороннего сервиса(брокера в данном случае))
+  schedule: "0 1 */3 * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          name: cron-trades-db-backup-job
+          namespace: prod
+          labels:
+            zone: prod
+            app: cron-trades-db-backup
+        spec:
+          containers:
+            - name: trades-db-backup
+              image: trades-db-backup
+              # Тут я считаю что команда для бэкапа зашита в entrypoint контейнера
+              envFrom:
+              - configMapRef:
+                  name: trades-db-config
+          restartPolicy: OnFailure
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cron-trades-backup-network-policy
+  namespace: prod
+spec:
+  pod-selector:
+    zone: prod
+    app: cron-trades-db-backup
+  policyTypes:
+  - Ingress
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: postgres://138.34.51.1/trades # trades-db url
+    ports:
+    - port: 5432 # trades-db port
+  - to:
+    - ipBlock:
+        cidr: some-backup-server-url
+  - to: # По логике это должно разрешить приложению обращаться к DNS серверу
+    - namespaceSelector: {}

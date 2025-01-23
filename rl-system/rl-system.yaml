@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rl-system-service
+  namespace: prod
+spec:
+  ports:
+  - port: 8080
+  selector:
+    zone: prod
+    app: rl-system-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rl-system-deployment
+  namespace: prod
+spec:
+  replicas: 1 # Больше не надо чтобы не дублировались запросы
+  selector:
+    matchlabels:
+      zone: prod
+      app: rl-system-service
+  template:
+    metadata:
+      namespace: prod
+      labels:
+        zone: prod
+        app: rl-system-service
+    spec:
+      containers:
+        - name: rl-system-service
+          image: rl-system-service-image
+          ports:
+          - containerPort: 8080
+          envFrom:
+          - secretRef:
+              name: trades-db-credits
+          resources:
+            requests:
+              cpu: 2
+              memory: 2Gi
+            limits:
+              cpu: 4
+              memory: 8Gi
+      restartPolicy: Always
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rl-system-network-policy
+  namespace: prod
+spec:
+  pod-selector:
+    zone: prod
+    app: rl-system-service
+  policyTypes:
+  - Ingress
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          zone: prod
+          app: tg-bot-service
+  - to:
+    - ipBlock:
+        cidr: postgres://138.34.51.1/trades # trades-db url
+    ports:
+    - port: 5432 # trades-db port
+  - to:
+    - ipBlock:
+        cidr: trade_broker_ip
+  - to: # По логике это должно разрешить приложению обращаться к DNS серверу
+    - namespaceSelector: {}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trades-db-config
+  namespace: prod
+data:
+  db_url: postgres://138.34.51.1/trades
+  db_port: 5432
+  user_readonly_name: Harry_Harrison
+  user_readonly_psw: The_Mothballed_Spaceship
