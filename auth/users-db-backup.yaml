@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: users-db-backup-job
+  namespace: prod
+spec:
+  completions: 1
+  template:
+    metadata:
+      name: users-db-backup-job
+      namespace: prod
+      labels:
+        zone: prod
+        app: users-db-backup
+    spec:
+      containers:
+        - name: users-db-backup
+          image: users-db-backup
+          # Тут я считаю что команда для бэкапа зашита в entrypoint контейнера
+          envFrom:
+          - configMapRef:
+              name: users-db-config
+      restartPolicy: OnFailure
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: users-backup-network-policy
+  namespace: prod
+spec:
+  pod-selector:
+    zone: prod
+    app: users-db-backup
+  policyTypes:
+  - Ingress
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: postgres://138.17.21.1/users # users-db url
+    ports:
+    - port: 5432 # users-db port
+  - to:
+    - ipBlock:
+        cidr: some-backup-server-url
+  - to: # По логике это должно разрешить приложению обращаться к DNS серверу
+    - namespaceSelector: {}

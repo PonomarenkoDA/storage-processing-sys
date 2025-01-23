@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: users-db-config
+  namespace: prod
+data:
+  db_url: postgres://138.17.21.1/users
+  db_port: 5432
+  user_readonly_name: George_Orwell
+  user_readonly_psw: Big_Brother_is_watching_you
+
+  broker-host: broker-host
+  broker-port: broker-port
